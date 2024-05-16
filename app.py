@@ -10,14 +10,10 @@ if os.path.exists('.env'):
 
 app = Flask(__name__)
 
-# Configura la conexión a la base de datos usando variables de entorno
-conn = psycopg2.connect(
-    host=os.getenv('DB_HOST'),
-    port=os.getenv('DB_PORT'),
-    user=os.getenv('DB_USER'),
-    password=os.getenv('DB_PASSWORD'),
-    dbname=os.getenv('DB_NAME')
-)
+# Usa la URL de conexión completa proporcionada por Render.com
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+conn = psycopg2.connect(DATABASE_URL)
 
 @app.route('/products', methods=['POST'])
 def add_product():
