@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Product Form</title>
+    <script>
+        async function submitForm(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const category = formData.get('category');
+
+            const details = {};
+            if (category === 'PVC') {
+                details.Radio = formData.get('radio');
+                details.Largo = formData.get('length');
+                details.Grosor = formData.get('thickness');
+                details.Material = formData.get('material');
+            } else if (category === 'Sensor') {
+                details.Voltaje = formData.get('voltage');
+                details.Amperaje = formData.get('amperage');
+                details.Marca = formData.get('brand');
+                details.Modelo = formData.get('model');
+            }
+            // Añadir más categorías según sea necesario
+
+            const product = {
+                name: formData.get('name'),
+                category: category,
+                details: details
+            };
+
+            const response = await fetch('https://tu_dominio.render.com/products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(product)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Product added successfully!');
+            } else {
+                alert('Error adding product.');
+            }
+        }
+
+        function updateForm() {
+            const category = document.getElementById('category').value;
+            const fields = document.getElementById('fields');
+            fields.innerHTML = '';
+
+            if (category === 'PVC') {
+                fields.innerHTML = `
+                    <label for="radio">Radio:</label>
+                    <input type="text" id="radio" name="radio"><br>
+                    <label for="length">Largo:</label>
+                    <input type="text" id="length" name="length"><br>
+                    <label for="thickness">Grosor:</label>
+                    <input type="text" id="thickness" name="thickness"><br>
+                    <label for="material">Material:</label>
+                    <input type="text" id="material" name="material"><br>
+                `;
+            } else if (category === 'Sensor') {
+                fields.innerHTML = `
+                    <label for="voltage">Voltaje:</label>
+                    <input type="text" id="voltage" name="voltage"><br>
+                    <label for="amperage">Amperaje:</label>
+                    <input type="text" id="amperage" name="amperage"><br>
+                    <label for="brand">Marca:</label>
+                    <input type="text" id="brand" name="brand"><br>
+                    <label for="model">Modelo:</label>
+                    <input type="text" id="model" name="model"><br>
+                `;
+            }
+            // Añadir más categorías según sea necesario
+        }
+    </script>
+</head>
+<body>
+    <form id="productForm" onsubmit="submitForm(event)">
+        <label for="name">Nombre del Producto:</label>
+        <input type="text" id="name" name="name" required><br>
+
+        <label for="category">Categoría:</label>
+        <select id="category" name="category" onchange="updateForm()" required>
+            <option value="">Selecciona una categoría</option>
+            <option value="PVC">PVC</option>
+            <option value="Sensor">Sensor</option>
+            <!-- Añadir más categorías según sea necesario -->
+        </select><br>
+
+        <div id="fields"></div>
+
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
