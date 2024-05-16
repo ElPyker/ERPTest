@@ -1,21 +1,22 @@
 from flask import Flask, request, jsonify
-import mysql.connector
+import psycopg2
 import json
 from dotenv import load_dotenv
 import os
 
-# Cargar variables de entorno si existe un archivo .env (útil para desarrollo local)
+# Cargar variables de entorno desde el archivo .env (solo para desarrollo local)
 if os.path.exists('.env'):
     load_dotenv()
 
 app = Flask(__name__)
 
-# Configura la conexión a MySQL usando variables de entorno
-db = mysql.connector.connect(
+# Configura la conexión a la base de datos usando variables de entorno
+conn = psycopg2.connect(
     host=os.getenv('DB_HOST'),
+    port=os.getenv('DB_PORT'),
     user=os.getenv('DB_USER'),
     password=os.getenv('DB_PASSWORD'),
-    database=os.getenv('DB_NAME')
+    dbname=os.getenv('DB_NAME')
 )
 
 @app.route('/products', methods=['POST'])
@@ -25,15 +26,16 @@ def add_product():
     category = data.get('category')
     details = data.get('details')
 
-    cursor = db.cursor()
+    cursor = conn.cursor()
     try:
         cursor.execute("""
             INSERT INTO products (name, category, details)
             VALUES (%s, %s, %s)
         """, (name, category, json.dumps(details)))
-        db.commit()
+        conn.commit()
 
-        product_id = cursor.lastrowid
+        cursor.execute("SELECT LASTVAL()")
+        product_id = cursor.fetchone()[0]
 
         # Actualiza el archivo JSON
         with open('products.json', 'r') as file:
@@ -46,7 +48,7 @@ def add_product():
 
         return jsonify(success=True, product_id=product_id)
     except Exception as e:
-        db.rollback()
+        conn.rollback()
         print(e)
         return jsonify(success=False)
     finally:
@@ -54,10 +56,11 @@ def add_product():
 
 @app.route('/products', methods=['GET'])
 def get_products():
-    cursor = db.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM products")
     products = cursor.fetchall()
     cursor.close()
+
     return jsonify(products)
 
 if __name__ == '__main__':
