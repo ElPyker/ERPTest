@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from pymongo import MongoClient
 import psycopg2
 import json
 from dotenv import load_dotenv
@@ -10,10 +11,17 @@ if os.path.exists('.env'):
 
 app = Flask(__name__)
 
-# Usa la URL de conexión completa proporcionada por Render.com
+# Configuración de la conexión a PostgreSQL
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 conn = psycopg2.connect(DATABASE_URL)
+
+# Configuración de la conexión a MongoDB
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://BrewIt:uDd3StzXJ2EdOhG5@cluster0.yvhgb38.mongodb.net/?retryWrites=true&w=majority')
+
+client = MongoClient(MONGO_URL)
+db = client.SmartPipes
+products_collection = db.Products
 
 @app.route('/')
 def index():
@@ -28,28 +36,23 @@ def add_product():
 
     cursor = conn.cursor()
     try:
+        # Insertar en PostgreSQL
         cursor.execute("""
-            INSERT INTO products (name, category, details)
-            VALUES (%s, %s, %s)
-        """, (name, category, json.dumps(details)))
+            INSERT INTO products (name, category)
+            VALUES (%s, %s)
+            RETURNING product_id
+        """, (name, category))
         conn.commit()
-
-        cursor.execute("SELECT LASTVAL()")
         product_id = cursor.fetchone()[0]
 
-        # Actualiza el archivo JSON
-        if os.path.exists('products.json'):
-            with open('products.json', 'r') as file:
-                json_data = json.load(file)
-        else:
-            json_data = {}
+        # Insertar en MongoDB
+        product_details = {
+            "product_id": product_id,
+            "details": details
+        }
+        result = products_collection.insert_one(product_details)
 
-        json_data[str(product_id)] = details
-
-        with open('products.json', 'w') as file:
-            json.dump(json_data, file, indent=4)
-
-        return jsonify(success=True, product_id=product_id)
+        return jsonify(success=True, product_id=product_id, mongo_id=str(result.inserted_id))
     except Exception as e:
         conn.rollback()
         print(e)
@@ -60,11 +63,31 @@ def add_product():
 @app.route('/products', methods=['GET'])
 def get_products():
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM products")
-    products = cursor.fetchall()
-    cursor.close()
-
-    return jsonify(products)
+    try:
+        cursor.execute("SELECT * FROM products")
+        products = cursor.fetchall()
+        
+        # Convertir los productos a un diccionario
+        products_dict = []
+        for product in products:
+            product_dict = {
+                "product_id": product[0],
+                "name": product[1],
+                "category": product[2],
+                "details": []
+            }
+            # Buscar detalles en MongoDB
+            mongo_product = products_collection.find_one({"product_id": product[0]})
+            if mongo_product:
+                product_dict["details"] = mongo_product["details"]
+            products_dict.append(product_dict)
+        
+        return jsonify(products_dict)
+    except Exception as e:
+        print(e)
+        return jsonify(success=False)
+    finally:
+        cursor.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
