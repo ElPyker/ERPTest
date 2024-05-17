@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import psycopg2
 import json
 from dotenv import load_dotenv
@@ -14,6 +14,10 @@ app = Flask(__name__)
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 conn = psycopg2.connect(DATABASE_URL)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/products', methods=['POST'])
 def add_product():
