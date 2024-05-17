@@ -38,9 +38,12 @@ def add_product():
         product_id = cursor.fetchone()[0]
 
         # Actualiza el archivo JSON
-        with open('products.json', 'r') as file:
-            json_data = json.load(file)
-        
+        if os.path.exists('products.json'):
+            with open('products.json', 'r') as file:
+                json_data = json.load(file)
+        else:
+            json_data = {}
+
         json_data[str(product_id)] = details
 
         with open('products.json', 'w') as file:
